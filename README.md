@@ -10,7 +10,7 @@ The dataset is sourced from Kaggle (`salader/dogs-vs-cats`), resized to **256×2
 - Optimizer: Adam  
 - Loss: Binary Crossentropy  
 - Metric: Accuracy  
-- Epochs: 5  
+- Epochs: 10  
 - Batch size: 32  
 
 Trained for **10 epochs**, achieving high accuracy. Includes code for predicting custom images after training.
