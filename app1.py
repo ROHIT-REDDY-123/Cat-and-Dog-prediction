@@ -1,34 +1,51 @@
+# app.py
 import streamlit as st
 import numpy as np
-import cv2
-from tensorflow.keras.models import load_model
 from PIL import Image
+import os
+import tensorflow as tf
 
-# Load your trained model
-model = load_model("model.h5")  # Make sure model.h5 is in the same folder
+st.set_page_config(page_title="Cat vs Dog Classifier", layout="centered")
 
-# Title
-st.title("🐶 Dog vs 🐱 Cat Classifier")
+@st.cache_resource
+def load_model(model_path="cat_dog_model.h5", model_url=None):
+    # If model file not present and model_url provided, download it
+    if not os.path.exists(model_path) and model_url:
+        import requests
+        with requests.get(model_url, stream=True) as r:
+            r.raise_for_status()
+            with open(model_path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+    model = tf.keras.models.load_model(model_path)
+    return model
 
-# File uploader
+# If you put model in repo, leave model_url=None.
+# If your model is hosted elsewhere (public link), set model_url to that raw link.
+MODEL_URL = "https://colab.research.google.com/drive/1a_abPgFE8g_JdBXsi0piANP0epXO5Atj?usp=sharing"  # e.g. "https://huggingface.co/username/repo/resolve/main/cat_dog_model.h5"
+model = load_model(model_path="cat_dog_model.h5", model_url=MODEL_URL)
+
+st.title("🐶🐱 Cat vs Dog Classifier")
+st.write("Upload an image and the model will predict whether it's a Cat or a Dog.")
+
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
-
-if uploaded_file is not None:
-    # Read image
-    image = Image.open(uploaded_file)
+if uploaded_file:
+    image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    # Convert to OpenCV format
-    img = np.array(image)
-    img = cv2.resize(img, (256, 256))  # Resize
-    img = img / 255.0  # Normalize (if you trained with normalization)
-    img_reshaped = np.expand_dims(img, axis=0)  # Reshape for prediction
+    # Preprocess
+    img_resized = image.resize((256, 256))
+    img_array = np.array(img_resized) / 255.0
+    img_batch = np.expand_dims(img_array, axis=0)
 
     # Predict
-    prediction = model.predict(img_reshaped)
-
-    # Show result
-    if prediction[0][0] > 0.5:
-        st.success("Prediction: 🐶 Dog")
+    pred = model.predict(img_batch)[0][0]
+    if pred > 0.5:
+        label = "Dog 🐶"
+        confidence = pred
     else:
-        st.success("Prediction: 🐱 Cat")
+        label = "Cat 🐱"
+        confidence = 1 - pred
+
+    st.markdown(f"### Prediction: **{label}**")
+    st.write(f"Confidence: **{confidence*100:.2f}%**")
